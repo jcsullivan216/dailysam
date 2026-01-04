@@ -1,8 +1,10 @@
-# SAM Daily Solicitations Tracker
+# SAM.gov Solicitations Tracker
 
 ## Project Overview
 
-Build a web application that automatically scrapes and tracks federal government solicitations and announcements from SAM Daily (https://samdaily.us/) relevant to RF/EW (Radio Frequency/Electronic Warfare) and defense industry work.
+A web application that fetches and tracks federal government solicitations from the official **SAM.gov API** relevant to RF/EW (Radio Frequency/Electronic Warfare) and defense industry work.
+
+**Data Source**: Official SAM.gov Opportunities API (https://api.sam.gov)
 
 ## Business Context
 
@@ -182,6 +184,14 @@ For each link above, collect:
 
 - Node.js 18+ installed
 - npm 9+ installed
+- SAM.gov API key (free)
+
+### Getting a SAM.gov API Key
+
+1. Go to https://sam.gov and create an account (or log in)
+2. Navigate to **Account Settings** → **API Keys**
+3. Click **Request API Key** for the public API
+4. Copy your API key (starts with `SAM-`)
 
 ### Quick Start (First Time Setup)
 
@@ -196,8 +206,9 @@ npm install
 # 3. Install all dependencies and build frontend
 npm run setup
 
-# 4. (Optional) Install Playwright browser for full scraping support
-cd backend && npx playwright install chromium && cd ..
+# 4. Configure your API key
+cp backend/.env.example backend/.env
+# Edit backend/.env and add your SAM_API_KEY
 
 # 5. Start the application
 npm start
@@ -207,8 +218,8 @@ npm start
 
 On first launch:
 1. The SQLite database will be automatically created in `backend/data/`
-2. Click **"Refresh Data"** to perform your first scrape of SAM Daily
-3. Wait for the scrape to complete (progress shown in UI)
+2. Click **"Refresh Data"** to fetch opportunities from SAM.gov
+3. Wait for the fetch to complete (progress shown in UI)
 4. Browse and filter the imported solicitations
 
 ### Running the Application
@@ -228,10 +239,19 @@ npm start
 
 ### Environment Variables
 
+Create `backend/.env` with:
+
+```env
+SAM_API_KEY=your-api-key-here
+PORT=3001
+ENABLE_AUTO_SCRAPE=false
+```
+
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `SAM_API_KEY` | (required) | Your SAM.gov API key |
 | `PORT` | 3001 | Backend server port |
-| `ENABLE_AUTO_SCRAPE` | false | Enable daily auto-scrape at 6 AM |
+| `ENABLE_AUTO_SCRAPE` | false | Enable daily auto-fetch at 6 AM |
 
 ### Project Structure
 
@@ -245,7 +265,9 @@ dailysam/
 │   │   ├── routes/
 │   │   │   └── solicitations.js  # API routes
 │   │   └── services/
-│   │       └── scraper.js    # Playwright scraper
+│   │       ├── samgov-api.js # SAM.gov API client (primary)
+│   │       └── scraper.js    # SAM Daily scraper (fallback)
+│   ├── .env                  # Environment variables (create from .env.example)
 │   └── data/                 # SQLite database (auto-created)
 ├── frontend/
 │   ├── src/
@@ -273,7 +295,7 @@ dailysam/
 ### Usage
 
 1. Start the application
-2. Click "Refresh Data" to scrape SAM Daily
+2. Click **"Refresh Data"** to fetch from SAM.gov API
 3. Browse and filter solicitations
 4. Click cards to expand details
 5. Mark items as relevant/not relevant
@@ -284,26 +306,32 @@ dailysam/
 
 | Issue | Solution |
 |-------|----------|
+| `SAM_API_KEY required` error | Add your API key to `backend/.env` |
 | `npm run setup` fails | Ensure Node.js 18+ is installed: `node --version` |
-| Playwright browser error | Run `cd backend && npx playwright install chromium` |
-| Port 3001 in use | Set custom port: `PORT=3002 npm start` |
-| Scrape returns no data | SAM Daily structure may have changed; check scraper logs |
-| Database errors | Delete `backend/data/` folder and restart to recreate |
+| API rate limit (429) | Wait 1 minute; limit is 1,000 requests/day |
+| Port 3001 in use | Set custom port in `backend/.env`: `PORT=3002` |
+| No results found | Check NAICS codes in `samgov-api.js` match your needs |
+| Database errors | Delete `backend/data/` folder and restart |
 
-### Enabling Auto-Scrape
+### Enabling Auto-Fetch
 
-To enable automatic daily scraping at 6 AM:
+To enable automatic daily fetching at 6 AM, edit `backend/.env`:
 
-```bash
-ENABLE_AUTO_SCRAPE=true npm start
-```
-
-Or create a `.env` file in the project root:
-```
+```env
+SAM_API_KEY=your-key-here
 ENABLE_AUTO_SCRAPE=true
 PORT=3001
 ```
 
+### Using Legacy SAM Daily Scraper
+
+If you need to use the legacy SAM Daily scraper instead of the API:
+
+```bash
+# Via API call
+curl -X POST "http://localhost:3001/api/scrape?source=samdaily"
+```
+
 ---
 
-**Priority**: This is a business-critical tool for tracking federal procurement opportunities. Reliability and accuracy are more important than fancy features.
+**Data Source**: Official SAM.gov Opportunities API - reliable, structured JSON data with no scraping issues.
