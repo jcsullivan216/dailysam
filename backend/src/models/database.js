@@ -76,8 +76,10 @@ const DEFAULT_SETTINGS = {
     'electronic warfare', 'RF system', 'radio frequency', 'radar system',
     'signal processing', 'EW system', 'jamming', 'SIGINT', 'spectrum',
     'antenna', 'microwave'
-  ],
-  daysToFetch: 30
+  ]
+  // Date range is calculated automatically:
+  // - Monday: Saturday through Monday (catch weekend postings)
+  // - Other days: current day only
 };
 
 // Initialize default settings if not present

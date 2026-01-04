@@ -11,6 +11,30 @@ function formatDateForSamGov(date) {
   return `${month}/${day}/${year}`;
 }
 
+// Calculate smart date range based on day of week
+// Monday (day 1): fetch Saturday through Monday (to catch weekend postings)
+// Other days: fetch just current day
+function getSmartDateRange() {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+  let fromDate = new Date(today);
+
+  if (dayOfWeek === 1) {
+    // Monday - go back to Saturday (2 days before)
+    fromDate.setDate(today.getDate() - 2);
+  }
+  // Otherwise fromDate stays as today (current day only)
+
+  return {
+    from: fromDate,
+    to: today,
+    description: dayOfWeek === 1
+      ? 'Saturday through Monday (weekend catch-up)'
+      : 'today only'
+  };
+}
+
 // Default NAICS codes relevant to RF/EW and defense (used if settings not available)
 const DEFAULT_NAICS = [
   '334220', // Radio and Television Broadcasting and Wireless Communications Equipment Manufacturing
@@ -61,7 +85,6 @@ export async function fetchFromSamGov(onProgress = null) {
   const settings = getSettings();
   const naicsCodes = settings.naicsCodes || DEFAULT_NAICS;
   const noticeTypes = settings.noticeTypes || DEFAULT_NOTICE_TYPES;
-  const daysToFetch = settings.daysToFetch || 30;
 
   // Get enabled notice type codes
   const enabledNoticeTypes = noticeTypes
@@ -83,16 +106,12 @@ export async function fetchFromSamGov(onProgress = null) {
     const logResult = insertScrapeLog.run(startedAt, 'in_progress', '', 0, '');
     scrapeLogId = logResult.lastInsertRowid;
 
-    logProgress(`Fetching opportunities from SAM.gov API (${naicsCodes.length} NAICS codes, ${enabledNoticeTypes.length} notice types, last ${daysToFetch} days)...`);
+    // Use smart date range: current day only, unless Monday (then Sat-Mon)
+    const dateRange = getSmartDateRange();
+    const postedFromStr = formatDateForSamGov(dateRange.from);
+    const postedToStr = formatDateForSamGov(dateRange.to);
 
-    // Fetch recent opportunities based on settings
-    // SAM.gov API requires MM/dd/yyyy format
-    const postedFrom = new Date();
-    postedFrom.setDate(postedFrom.getDate() - daysToFetch);
-    const postedFromStr = formatDateForSamGov(postedFrom);
-
-    const postedTo = new Date();
-    const postedToStr = formatDateForSamGov(postedTo);
+    logProgress(`Fetching opportunities from SAM.gov API (${naicsCodes.length} NAICS codes, ${enabledNoticeTypes.length} notice types, ${dateRange.description})...`);
 
     // Build NAICS filter string (OR condition with ~)
     const naicsFilter = naicsCodes.join('~');
@@ -315,14 +334,16 @@ export async function fetchDefenseOpportunities(onProgress = null) {
   // Load settings from database
   const settings = getSettings();
   const keywords = settings.keywords || DEFAULT_KEYWORDS;
-  const daysToFetch = settings.daysToFetch || 30;
+
+  // Use smart date range: current day only, unless Monday (then Sat-Mon)
+  const dateRange = getSmartDateRange();
 
   const logProgress = (message) => {
     console.log(`[SAM.gov API] ${message}`);
     if (onProgress) onProgress(message);
   };
 
-  logProgress(`Searching for ${keywords.length} keywords...`);
+  logProgress(`Searching for ${keywords.length} keywords (${dateRange.description})...`);
 
   let totalItems = 0;
   const errors = [];
@@ -335,8 +356,8 @@ export async function fetchDefenseOpportunities(onProgress = null) {
       const params = new URLSearchParams({
         q: keyword,
         limit: '100',
-        postedFrom: getDateDaysAgo(daysToFetch),
-        postedTo: getTodayDate(),
+        postedFrom: formatDateForSamGov(dateRange.from),
+        postedTo: formatDateForSamGov(dateRange.to),
       });
 
       const response = await fetch(`${SAM_API_BASE}?${params.toString()}`, {
