@@ -209,7 +209,8 @@ npm run setup
 
 # 4. Configure your API key
 cp backend/.env.example backend/.env
-# Edit backend/.env and add your SAM_API_KEY
+# Then edit backend/.env and set:
+# SAM_API_KEY=SAM-0be519ef-1856-4798-999a-3021fd2476f4
 
 # 5. Start the application
 npm start
