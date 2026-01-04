@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { insertSolicitation, insertScrapeLog, updateScrapeLog } from '../models/database.js';
+import { insertSolicitation, insertScrapeLog, updateScrapeLog, getSettings } from '../models/database.js';
 
 const SAM_API_BASE = 'https://api.sam.gov/opportunities/v2/search';
 
@@ -11,8 +11,8 @@ function formatDateForSamGov(date) {
   return `${month}/${day}/${year}`;
 }
 
-// NAICS codes relevant to RF/EW and defense
-const TARGET_NAICS = [
+// Default NAICS codes relevant to RF/EW and defense (used if settings not available)
+const DEFAULT_NAICS = [
   '334220', // Radio and Television Broadcasting and Wireless Communications Equipment Manufacturing
   '334511', // Search, Detection, Navigation, Guidance, Aeronautical Systems
   '334290', // Other Communications Equipment Manufacturing
@@ -27,16 +27,23 @@ const TARGET_NAICS = [
   '561210', // Facilities Support Services
 ];
 
-// Notice types to fetch
-const NOTICE_TYPES = [
-  'p', // Presolicitation
-  'o', // Solicitation
-  'k', // Combined Synopsis/Solicitation
-  'r', // Sources Sought
-  'a', // Award Notice
-  's', // Special Notice
-  'i', // Intent to Bundle
-  'g', // Sale of Surplus Property
+// Default notice types to fetch (used if settings not available)
+const DEFAULT_NOTICE_TYPES = [
+  { code: 'p', name: 'Presolicitation', enabled: true },
+  { code: 'o', name: 'Solicitation', enabled: true },
+  { code: 'k', name: 'Combined Synopsis/Solicitation', enabled: true },
+  { code: 'r', name: 'Sources Sought', enabled: true },
+  { code: 'a', name: 'Award Notice', enabled: true },
+  { code: 's', name: 'Special Notice', enabled: true },
+  { code: 'i', name: 'Intent to Bundle', enabled: false },
+  { code: 'g', name: 'Sale of Surplus Property', enabled: false },
+];
+
+// Default keywords for defense-related searches
+const DEFAULT_KEYWORDS = [
+  'electronic warfare', 'RF system', 'radio frequency', 'radar system',
+  'signal processing', 'EW system', 'jamming', 'SIGINT', 'spectrum',
+  'antenna', 'microwave'
 ];
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -47,6 +54,17 @@ export async function fetchFromSamGov(onProgress = null) {
   if (!apiKey) {
     throw new Error('SAM_API_KEY environment variable is required. Get one at https://sam.gov');
   }
+
+  // Load settings from database
+  const settings = getSettings();
+  const naicsCodes = settings.naicsCodes || DEFAULT_NAICS;
+  const noticeTypes = settings.noticeTypes || DEFAULT_NOTICE_TYPES;
+  const daysToFetch = settings.daysToFetch || 30;
+
+  // Get enabled notice type codes
+  const enabledNoticeTypes = noticeTypes
+    .filter(nt => nt.enabled)
+    .map(nt => nt.code);
 
   let scrapeLogId = null;
   const errors = [];
@@ -63,19 +81,22 @@ export async function fetchFromSamGov(onProgress = null) {
     const logResult = insertScrapeLog.run(startedAt, 'in_progress', '', 0, '');
     scrapeLogId = logResult.lastInsertRowid;
 
-    logProgress('Fetching opportunities from SAM.gov API...');
+    logProgress(`Fetching opportunities from SAM.gov API (${naicsCodes.length} NAICS codes, ${enabledNoticeTypes.length} notice types, last ${daysToFetch} days)...`);
 
-    // Fetch recent opportunities (last 30 days)
+    // Fetch recent opportunities based on settings
     // SAM.gov API requires MM/dd/yyyy format
     const postedFrom = new Date();
-    postedFrom.setDate(postedFrom.getDate() - 30);
+    postedFrom.setDate(postedFrom.getDate() - daysToFetch);
     const postedFromStr = formatDateForSamGov(postedFrom);
 
     const postedTo = new Date();
     const postedToStr = formatDateForSamGov(postedTo);
 
     // Build NAICS filter string (OR condition with ~)
-    const naicsFilter = TARGET_NAICS.join('~');
+    const naicsFilter = naicsCodes.join('~');
+
+    // Build notice type filter string (OR condition with ~)
+    const noticeTypeFilter = enabledNoticeTypes.join('~');
 
     let offset = 0;
     const limit = 100;
@@ -88,9 +109,14 @@ export async function fetchFromSamGov(onProgress = null) {
         postedTo: postedToStr,
         limit: limit.toString(),
         offset: offset.toString(),
-        // Filter by NAICS codes relevant to defense/RF/EW
+        // Filter by NAICS codes from settings
         ncode: naicsFilter,
       });
+
+      // Add notice type filter if any are enabled
+      if (noticeTypeFilter) {
+        params.set('ptype', noticeTypeFilter);
+      }
 
       const url = `${SAM_API_BASE}?${params.toString()}`;
       logProgress(`Fetching page ${Math.floor(offset / limit) + 1}...`);
@@ -284,25 +310,17 @@ export async function fetchDefenseOpportunities(onProgress = null) {
     throw new Error('SAM_API_KEY environment variable is required');
   }
 
+  // Load settings from database
+  const settings = getSettings();
+  const keywords = settings.keywords || DEFAULT_KEYWORDS;
+  const daysToFetch = settings.daysToFetch || 30;
+
   const logProgress = (message) => {
     console.log(`[SAM.gov API] ${message}`);
     if (onProgress) onProgress(message);
   };
 
-  // Defense-related keywords
-  const keywords = [
-    'electronic warfare',
-    'RF system',
-    'radio frequency',
-    'radar system',
-    'signal processing',
-    'EW system',
-    'jamming',
-    'SIGINT',
-    'spectrum',
-    'antenna',
-    'microwave',
-  ];
+  logProgress(`Searching for ${keywords.length} keywords...`);
 
   let totalItems = 0;
   const errors = [];
@@ -315,7 +333,7 @@ export async function fetchDefenseOpportunities(onProgress = null) {
       const params = new URLSearchParams({
         q: keyword,
         limit: '100',
-        postedFrom: getDateDaysAgo(30),
+        postedFrom: getDateDaysAgo(daysToFetch),
         postedTo: getTodayDate(),
       });
 

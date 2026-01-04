@@ -80,3 +80,19 @@ export function getExportUrl(format = 'json', filters = {}) {
 
   return `${API_BASE}/export?${params.toString()}`;
 }
+
+export async function getSettings() {
+  const response = await fetch(`${API_BASE}/settings`);
+  return handleResponse(response);
+}
+
+export async function updateSettings(settings) {
+  const response = await fetch(`${API_BASE}/settings`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(settings),
+  });
+  return handleResponse(response);
+}

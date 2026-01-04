@@ -47,7 +47,55 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_solicitations_category ON solicitations(category);
   CREATE INDEX IF NOT EXISTS idx_solicitations_posted_date ON solicitations(posted_date);
   CREATE INDEX IF NOT EXISTS idx_solicitations_agency ON solicitations(agency);
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
 `);
+
+// Default filter settings
+const DEFAULT_SETTINGS = {
+  naicsCodes: [
+    '334220', '334511', '334290', '541330', '541512', '541715',
+    '336411', '336414', '336419', '334419', '334418', '561210'
+  ],
+  noticeTypes: [
+    { code: 'p', name: 'Presolicitation', enabled: true },
+    { code: 'o', name: 'Solicitation', enabled: true },
+    { code: 'k', name: 'Combined Synopsis/Solicitation', enabled: true },
+    { code: 'r', name: 'Sources Sought', enabled: true },
+    { code: 'a', name: 'Award Notice', enabled: true },
+    { code: 's', name: 'Special Notice', enabled: true },
+    { code: 'i', name: 'Intent to Bundle', enabled: false },
+    { code: 'g', name: 'Sale of Surplus Property', enabled: false }
+  ],
+  keywords: [
+    'electronic warfare', 'RF system', 'radio frequency', 'radar system',
+    'signal processing', 'EW system', 'jamming', 'SIGINT', 'spectrum',
+    'antenna', 'microwave'
+  ],
+  daysToFetch: 30
+};
+
+// Initialize default settings if not present
+const initSettings = db.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`);
+initSettings.run('filterSettings', JSON.stringify(DEFAULT_SETTINGS));
+
+export const getSettings = () => {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('filterSettings');
+  if (row) {
+    return JSON.parse(row.value);
+  }
+  return DEFAULT_SETTINGS;
+};
+
+export const updateSettings = (settings) => {
+  db.prepare('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?')
+    .run(JSON.stringify(settings), 'filterSettings');
+  return getSettings();
+};
 
 // Prepared statements for common operations
 export const insertSolicitation = db.prepare(`
