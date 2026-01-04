@@ -17,14 +17,15 @@ const NAICS_DESCRIPTIONS = {
   '561210': 'Facilities Support Services',
 };
 
-// All available notice types
+// All available notice types (valid SAM.gov ptype values: p, k, r, g, s, f, i, u, a)
 const ALL_NOTICE_TYPES = [
   { code: 'p', name: 'Presolicitation' },
-  { code: 'o', name: 'Solicitation' },
   { code: 'k', name: 'Combined Synopsis/Solicitation' },
   { code: 'r', name: 'Sources Sought' },
   { code: 'a', name: 'Award Notice' },
   { code: 's', name: 'Special Notice' },
+  { code: 'u', name: 'Justification & Approval (J&A)' },
+  { code: 'f', name: 'Fair Opportunity / Limited Sources' },
   { code: 'i', name: 'Intent to Bundle' },
   { code: 'g', name: 'Sale of Surplus Property' },
 ];

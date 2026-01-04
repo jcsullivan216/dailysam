@@ -28,13 +28,15 @@ const DEFAULT_NAICS = [
 ];
 
 // Default notice types to fetch (used if settings not available)
+// Valid SAM.gov ptype values: p, k, r, g, s, f, i, u, a
 const DEFAULT_NOTICE_TYPES = [
   { code: 'p', name: 'Presolicitation', enabled: true },
-  { code: 'o', name: 'Solicitation', enabled: true },
   { code: 'k', name: 'Combined Synopsis/Solicitation', enabled: true },
   { code: 'r', name: 'Sources Sought', enabled: true },
   { code: 'a', name: 'Award Notice', enabled: true },
   { code: 's', name: 'Special Notice', enabled: true },
+  { code: 'u', name: 'Justification & Approval (J&A)', enabled: true },
+  { code: 'f', name: 'Fair Opportunity / Limited Sources', enabled: false },
   { code: 'i', name: 'Intent to Bundle', enabled: false },
   { code: 'g', name: 'Sale of Surplus Property', enabled: false },
 ];
