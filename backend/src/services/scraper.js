@@ -9,6 +9,73 @@ const REQUEST_DELAY = 1000;
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Junk content patterns to filter out
+const JUNK_PATTERNS = [
+  /adsbygoogle/i,
+  /window\.\w+\s*=/i,
+  /\.push\s*\(\s*\{/i,
+  /privacy\s*policy/i,
+  /cookie\s*policy/i,
+  /terms\s*(of\s*)?(use|service)/i,
+  /copyright\s*©/i,
+  /©\s*\d{4}/i,
+  /all\s*rights\s*reserved/i,
+  /hubbub/i,
+  /loren\s*data/i,
+  /jenny\s*in\s*wanderland/i,
+  /issue\s*statistics/i,
+  /ecgridos/i,
+  /edi\s*web\s*services/i,
+  /interconnect\s*api/i,
+  /google\s*ad/i,
+  /advertisement/i,
+  /sponsored/i,
+  /click\s*here/i,
+  /subscribe\s*(now|today)/i,
+  /newsletter/i,
+  /follow\s*us/i,
+  /social\s*media/i,
+  /facebook|twitter|linkedin|instagram/i,
+  /^sam\s*daily\s*issue/i,
+  /^\s*home\s*$/i,
+  /^\s*about\s*$/i,
+  /^\s*contact\s*$/i,
+  /^\s*login\s*$/i,
+  /^\s*sign\s*(up|in)\s*$/i,
+];
+
+function isJunkContent(text) {
+  if (!text || text.length < 10) return true;
+
+  // Check against junk patterns
+  for (const pattern of JUNK_PATTERNS) {
+    if (pattern.test(text)) return true;
+  }
+
+  // Filter out lines that are mostly special characters or numbers
+  const alphaRatio = (text.match(/[a-zA-Z]/g) || []).length / text.length;
+  if (alphaRatio < 0.4) return true;
+
+  // Filter out very short "titles" that are likely navigation
+  if (text.length < 20) return true;
+
+  return false;
+}
+
+function filterItems(items) {
+  return items.filter(item => {
+    // Check title for junk
+    if (isJunkContent(item.title)) return false;
+
+    // Check description for junk (if it's the main content)
+    if (item.description && isJunkContent(item.description) && item.title.length < 50) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
 // Try to import playwright, but handle gracefully if not available
 let chromium = null;
 try {
@@ -197,7 +264,10 @@ async function scrapeWithFetch(logProgress, errors) {
         }
 
         const categoryHtml = await categoryResponse.text();
-        const items = extractItemsFromHtml(categoryHtml, category, categoryUrl, scrapedAt);
+        const rawItems = extractItemsFromHtml(categoryHtml, category, categoryUrl, scrapedAt);
+        const items = filterItems(rawItems);
+
+        logProgress(`Category ${category}: found ${rawItems.length} raw items, ${items.length} after filtering`);
 
         for (const item of items) {
           try {
@@ -397,10 +467,19 @@ async function scrapeWithPlaywright(logProgress, errors) {
         }
 
         await categoryLink.click();
-        await page.waitForLoadState('networkidle');
+
+        // Use shorter timeout with graceful fallback
+        try {
+          await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+        } catch (timeoutErr) {
+          logProgress(`Timeout waiting for category ${category}, continuing with partial content...`);
+        }
         await delay(REQUEST_DELAY);
 
-        const items = await extractSolicitationsFromPage(page, category, scrapedAt);
+        const rawItems = await extractSolicitationsFromPage(page, category, scrapedAt);
+        const items = filterItems(rawItems);
+
+        logProgress(`Category ${category}: found ${rawItems.length} raw items, ${items.length} after filtering`);
 
         for (const item of items) {
           try {
@@ -425,7 +504,7 @@ async function scrapeWithPlaywright(logProgress, errors) {
         }
 
         categoriesScraped.push(category);
-        logProgress(`Found ${items.length} items in category ${category}`);
+        logProgress(`Saved ${items.length} items from category ${category}`);
 
       } catch (categoryError) {
         errors.push(`Error scraping category ${category}: ${categoryError.message}`);
