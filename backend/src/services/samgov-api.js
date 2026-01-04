@@ -116,13 +116,15 @@ export async function fetchFromSamGov(onProgress = null) {
     // Build NAICS filter string (OR condition with ~)
     const naicsFilter = naicsCodes.join('~');
 
-    // Build notice type filter string (OR condition with ~)
-    const noticeTypeFilter = enabledNoticeTypes.join('~');
+    // Build notice type filter string (comma-separated for ptype)
+    const noticeTypeFilter = enabledNoticeTypes.join(',');
 
     let offset = 0;
     const limit = 100;
     let hasMore = true;
     const seenIds = new Set();
+    let rateLimitRetries = 0;
+    const MAX_RATE_LIMIT_RETRIES = 3;
 
     while (hasMore) {
       const params = new URLSearchParams({
@@ -152,12 +154,22 @@ export async function fetchFromSamGov(onProgress = null) {
       if (!response.ok) {
         const errorText = await response.text();
         if (response.status === 429) {
-          logProgress('Rate limited, waiting 60 seconds...');
+          rateLimitRetries++;
+          if (rateLimitRetries >= MAX_RATE_LIMIT_RETRIES) {
+            logProgress(`Rate limited ${MAX_RATE_LIMIT_RETRIES} times, stopping to avoid API abuse. Try again later.`);
+            errors.push('Rate limited by SAM.gov API - try again in a few minutes');
+            hasMore = false;
+            break;
+          }
+          logProgress(`Rate limited, waiting 60 seconds (attempt ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES})...`);
           await delay(60000);
           continue;
         }
         throw new Error(`SAM.gov API error ${response.status}: ${errorText}`);
       }
+
+      // Reset retry counter on successful request
+      rateLimitRetries = 0;
 
       const data = await response.json();
       const opportunities = data.opportunitiesData || [];
@@ -207,8 +219,8 @@ export async function fetchFromSamGov(onProgress = null) {
         hasMore = false;
       } else {
         offset += limit;
-        // Rate limiting - be respectful
-        await delay(500);
+        // Rate limiting - be respectful with 2 second delay
+        await delay(2000);
       }
 
       // Safety limit to avoid infinite loops
@@ -348,14 +360,22 @@ export async function fetchDefenseOpportunities(onProgress = null) {
   let totalItems = 0;
   const errors = [];
   const seenIds = new Set();
+  let rateLimitHits = 0;
+  const MAX_RATE_LIMIT_HITS = 2;
 
   for (const keyword of keywords) {
+    // If we've been rate limited too much, stop
+    if (rateLimitHits >= MAX_RATE_LIMIT_HITS) {
+      logProgress('Stopping keyword search due to rate limiting');
+      break;
+    }
+
     try {
       logProgress(`Searching for: ${keyword}`);
 
       const params = new URLSearchParams({
         q: keyword,
-        limit: '100',
+        limit: '50', // Reduced limit to be gentler on API
         postedFrom: formatDateForSamGov(dateRange.from),
         postedTo: formatDateForSamGov(dateRange.to),
       });
@@ -369,8 +389,8 @@ export async function fetchDefenseOpportunities(onProgress = null) {
 
       if (!response.ok) {
         if (response.status === 429) {
-          logProgress('Rate limited, waiting...');
-          await delay(60000);
+          rateLimitHits++;
+          logProgress(`Rate limited (${rateLimitHits}/${MAX_RATE_LIMIT_HITS}), skipping remaining keywords...`);
           continue;
         }
         continue;
@@ -405,8 +425,8 @@ export async function fetchDefenseOpportunities(onProgress = null) {
         }
       }
 
-      // Rate limiting
-      await delay(500);
+      // Rate limiting - be more respectful with 2 second delay
+      await delay(2000);
 
     } catch (error) {
       errors.push(`Error searching "${keyword}": ${error.message}`);
