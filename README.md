@@ -183,32 +183,26 @@ For each link above, collect:
 - Node.js 18+ installed
 - npm 9+ installed
 
-### Installation
-
-```bash
-# Install all dependencies (root, backend, frontend)
-npm run setup
-```
-
-This will install dependencies for all parts of the application and build the frontend.
-
 ### Quick Start (First Time Setup)
 
 ```bash
 # 1. Clone the repository
-git clone <repository-url>
+git clone https://github.com/jcsullivan216/dailysam.git
 cd dailysam
 
-# 2. Install all dependencies
+# 2. Install root dependencies first
+npm install
+
+# 3. Install all dependencies and build frontend
 npm run setup
 
-# 3. (Optional) Install Playwright browser for full scraping support
+# 4. (Optional) Install Playwright browser for full scraping support
 cd backend && npx playwright install chromium && cd ..
 
-# 4. Start the application
+# 5. Start the application
 npm start
 
-# 5. Open your browser to http://localhost:3001
+# 6. Open your browser to http://localhost:3001
 ```
 
 On first launch:
