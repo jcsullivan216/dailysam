@@ -1,0 +1,143 @@
+import Database from 'better-sqlite3';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const dbPath = path.join(__dirname, '..', '..', 'data', 'solicitations.db');
+
+// Ensure data directory exists
+import fs from 'fs';
+const dataDir = path.dirname(dbPath);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
+
+// Initialize database schema
+db.exec(`
+  CREATE TABLE IF NOT EXISTS solicitations (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    agency TEXT,
+    posted_date TEXT,
+    response_deadline TEXT,
+    source_url TEXT,
+    related_links TEXT,
+    scraped_at TEXT NOT NULL,
+    is_relevant INTEGER,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS scrape_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    status TEXT NOT NULL,
+    categories_scraped TEXT,
+    items_found INTEGER DEFAULT 0,
+    errors TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_solicitations_category ON solicitations(category);
+  CREATE INDEX IF NOT EXISTS idx_solicitations_posted_date ON solicitations(posted_date);
+  CREATE INDEX IF NOT EXISTS idx_solicitations_agency ON solicitations(agency);
+`);
+
+// Prepared statements for common operations
+export const insertSolicitation = db.prepare(`
+  INSERT OR REPLACE INTO solicitations
+  (id, category, title, description, agency, posted_date, response_deadline, source_url, related_links, scraped_at, is_relevant, notes, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+`);
+
+export const getSolicitations = (filters = {}) => {
+  let query = 'SELECT * FROM solicitations WHERE 1=1';
+  const params = [];
+
+  if (filters.category) {
+    query += ' AND category = ?';
+    params.push(filters.category);
+  }
+
+  if (filters.agency) {
+    query += ' AND agency LIKE ?';
+    params.push(`%${filters.agency}%`);
+  }
+
+  if (filters.search) {
+    query += ' AND (title LIKE ? OR description LIKE ?)';
+    params.push(`%${filters.search}%`, `%${filters.search}%`);
+  }
+
+  if (filters.startDate) {
+    query += ' AND posted_date >= ?';
+    params.push(filters.startDate);
+  }
+
+  if (filters.endDate) {
+    query += ' AND posted_date <= ?';
+    params.push(filters.endDate);
+  }
+
+  if (filters.isRelevant !== undefined && filters.isRelevant !== '') {
+    if (filters.isRelevant === 'true' || filters.isRelevant === true) {
+      query += ' AND is_relevant = 1';
+    } else if (filters.isRelevant === 'false' || filters.isRelevant === false) {
+      query += ' AND is_relevant = 0';
+    } else if (filters.isRelevant === 'null') {
+      query += ' AND is_relevant IS NULL';
+    }
+  }
+
+  query += ' ORDER BY posted_date DESC, scraped_at DESC';
+
+  const stmt = db.prepare(query);
+  return stmt.all(...params);
+};
+
+export const getSolicitationById = db.prepare('SELECT * FROM solicitations WHERE id = ?');
+
+export const updateSolicitation = db.prepare(`
+  UPDATE solicitations SET is_relevant = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`);
+
+export const getDistinctAgencies = () => {
+  return db.prepare('SELECT DISTINCT agency FROM solicitations WHERE agency IS NOT NULL ORDER BY agency').all();
+};
+
+export const getDistinctCategories = () => {
+  return db.prepare('SELECT DISTINCT category FROM solicitations ORDER BY category').all();
+};
+
+export const insertScrapeLog = db.prepare(`
+  INSERT INTO scrape_logs (started_at, status, categories_scraped, items_found, errors)
+  VALUES (?, ?, ?, ?, ?)
+`);
+
+export const updateScrapeLog = db.prepare(`
+  UPDATE scrape_logs SET completed_at = ?, status = ?, items_found = ?, errors = ? WHERE id = ?
+`);
+
+export const getRecentScrapeLogs = db.prepare(`
+  SELECT * FROM scrape_logs ORDER BY started_at DESC LIMIT 10
+`);
+
+export const archiveOldSolicitations = () => {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+  return db.prepare(`
+    DELETE FROM solicitations
+    WHERE response_deadline IS NOT NULL
+    AND response_deadline < ?
+  `).run(dateStr);
+};
+
+export default db;

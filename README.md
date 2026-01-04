@@ -176,13 +176,90 @@ For each link above, collect:
 - Consider adding keyword highlighting in descriptions
 - Future enhancement: AI-powered relevance scoring based on business focus
 
-## Getting Started for Developer
+## Getting Started
 
-1. Clone/create project directory
-2. Install dependencies
-3. Run initial scrape to test
-4. Start development server
-5. Access at localhost:3000 (or specified port)
+### Prerequisites
+
+- Node.js 18+ installed
+- npm 9+ installed
+
+### Installation
+
+```bash
+# Install all dependencies (root, backend, frontend)
+npm run setup
+```
+
+This will install dependencies for all parts of the application and build the frontend.
+
+### Running the Application
+
+**Development Mode (with hot reload):**
+```bash
+npm run dev
+```
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:3001
+
+**Production Mode:**
+```bash
+npm start
+```
+- Full application: http://localhost:3001
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | 3001 | Backend server port |
+| `ENABLE_AUTO_SCRAPE` | false | Enable daily auto-scrape at 6 AM |
+
+### Project Structure
+
+```
+dailysam/
+├── backend/
+│   ├── src/
+│   │   ├── index.js          # Express server entry
+│   │   ├── models/
+│   │   │   └── database.js   # SQLite database setup
+│   │   ├── routes/
+│   │   │   └── solicitations.js  # API routes
+│   │   └── services/
+│   │       └── scraper.js    # Playwright scraper
+│   └── data/                 # SQLite database (auto-created)
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx           # Main React app
+│   │   ├── components/       # React components
+│   │   ├── hooks/            # Custom React hooks
+│   │   └── services/         # API client
+│   └── dist/                 # Production build (auto-generated)
+└── package.json              # Root package with scripts
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/solicitations` | List solicitations (with filters) |
+| GET | `/api/solicitations/:id` | Get single solicitation |
+| PATCH | `/api/solicitations/:id` | Update relevance/notes |
+| GET | `/api/solicitations/filters` | Get available filter options |
+| POST | `/api/scrape` | Trigger new scrape |
+| GET | `/api/scrape/status` | Get current scrape status |
+| GET | `/api/export` | Export data (JSON/CSV) |
+| POST | `/api/archive` | Archive old solicitations |
+
+### Usage
+
+1. Start the application
+2. Click "Refresh Data" to scrape SAM Daily
+3. Browse and filter solicitations
+4. Click cards to expand details
+5. Mark items as relevant/not relevant
+6. Add notes for future reference
+7. Export data as needed
 
 ---
 

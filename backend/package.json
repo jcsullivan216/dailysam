@@ -1,0 +1,19 @@
+{
+  "name": "dailysam-backend",
+  "version": "1.0.0",
+  "description": "SAM Daily Solicitations Tracker Backend",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "playwright": "^1.40.0",
+    "uuid": "^9.0.1"
+  }
+}
