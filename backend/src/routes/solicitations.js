@@ -93,6 +93,62 @@ router.get('/filters', (req, res) => {
   }
 });
 
+// GET /api/solicitations/settings - Get current filter settings
+router.get('/settings', (req, res) => {
+  try {
+    const settings = getSettings();
+    res.json({
+      success: true,
+      data: settings
+    });
+  } catch (error) {
+    console.error('Error getting settings:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/solicitations/settings - Update filter settings
+router.put('/settings', (req, res) => {
+  try {
+    const settings = req.body;
+
+    // Validate required fields
+    if (!settings.naicsCodes || !Array.isArray(settings.naicsCodes)) {
+      return res.status(400).json({
+        success: false,
+        error: 'naicsCodes must be an array'
+      });
+    }
+    if (!settings.noticeTypes || !Array.isArray(settings.noticeTypes)) {
+      return res.status(400).json({
+        success: false,
+        error: 'noticeTypes must be an array'
+      });
+    }
+    if (!settings.keywords || !Array.isArray(settings.keywords)) {
+      return res.status(400).json({
+        success: false,
+        error: 'keywords must be an array'
+      });
+    }
+
+    const updated = updateSettings(settings);
+    res.json({
+      success: true,
+      data: updated
+    });
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // GET /api/solicitations/:id - Get a single solicitation
 router.get('/:id', (req, res) => {
   try {
@@ -268,62 +324,6 @@ router.post('/archive', (req, res) => {
     });
   } catch (error) {
     console.error('Error archiving:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// GET /api/settings - Get current filter settings
-router.get('/settings', (req, res) => {
-  try {
-    const settings = getSettings();
-    res.json({
-      success: true,
-      data: settings
-    });
-  } catch (error) {
-    console.error('Error getting settings:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// PUT /api/settings - Update filter settings
-router.put('/settings', (req, res) => {
-  try {
-    const settings = req.body;
-
-    // Validate required fields
-    if (!settings.naicsCodes || !Array.isArray(settings.naicsCodes)) {
-      return res.status(400).json({
-        success: false,
-        error: 'naicsCodes must be an array'
-      });
-    }
-    if (!settings.noticeTypes || !Array.isArray(settings.noticeTypes)) {
-      return res.status(400).json({
-        success: false,
-        error: 'noticeTypes must be an array'
-      });
-    }
-    if (!settings.keywords || !Array.isArray(settings.keywords)) {
-      return res.status(400).json({
-        success: false,
-        error: 'keywords must be an array'
-      });
-    }
-
-    const updated = updateSettings(settings);
-    res.json({
-      success: true,
-      data: updated
-    });
-  } catch (error) {
-    console.error('Error updating settings:', error);
     res.status(500).json({
       success: false,
       error: error.message

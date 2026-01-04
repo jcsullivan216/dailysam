@@ -63,11 +63,12 @@ const DEFAULT_SETTINGS = {
   ],
   noticeTypes: [
     { code: 'p', name: 'Presolicitation', enabled: true },
-    { code: 'o', name: 'Solicitation', enabled: true },
     { code: 'k', name: 'Combined Synopsis/Solicitation', enabled: true },
     { code: 'r', name: 'Sources Sought', enabled: true },
     { code: 'a', name: 'Award Notice', enabled: true },
     { code: 's', name: 'Special Notice', enabled: true },
+    { code: 'u', name: 'Justification & Approval (J&A)', enabled: true },
+    { code: 'f', name: 'Fair Opportunity / Limited Sources', enabled: false },
     { code: 'i', name: 'Intent to Bundle', enabled: false },
     { code: 'g', name: 'Sale of Surplus Property', enabled: false }
   ],
@@ -75,13 +76,48 @@ const DEFAULT_SETTINGS = {
     'electronic warfare', 'RF system', 'radio frequency', 'radar system',
     'signal processing', 'EW system', 'jamming', 'SIGINT', 'spectrum',
     'antenna', 'microwave'
-  ],
-  daysToFetch: 30
+  ]
+  // Date range is calculated automatically:
+  // - Monday: Saturday through Monday (catch weekend postings)
+  // - Other days: current day only
 };
 
 // Initialize default settings if not present
 const initSettings = db.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`);
 initSettings.run('filterSettings', JSON.stringify(DEFAULT_SETTINGS));
+
+// Migration: Fix invalid notice types (remove 'o', add 'u' and 'f' if missing)
+const migrateSettings = () => {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('filterSettings');
+  if (row) {
+    const settings = JSON.parse(row.value);
+    if (settings.noticeTypes) {
+      // Remove invalid 'o' type
+      const hasInvalidO = settings.noticeTypes.some(nt => nt.code === 'o');
+      const missingU = !settings.noticeTypes.some(nt => nt.code === 'u');
+      const missingF = !settings.noticeTypes.some(nt => nt.code === 'f');
+
+      if (hasInvalidO || missingU || missingF) {
+        // Filter out invalid 'o' type
+        settings.noticeTypes = settings.noticeTypes.filter(nt => nt.code !== 'o');
+
+        // Add missing valid types
+        if (missingU) {
+          settings.noticeTypes.push({ code: 'u', name: 'Justification & Approval (J&A)', enabled: true });
+        }
+        if (missingF) {
+          settings.noticeTypes.push({ code: 'f', name: 'Fair Opportunity / Limited Sources', enabled: false });
+        }
+
+        // Save migrated settings
+        db.prepare('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?')
+          .run(JSON.stringify(settings), 'filterSettings');
+        console.log('[Database] Migrated settings: fixed invalid notice types');
+      }
+    }
+  }
+};
+migrateSettings();
 
 export const getSettings = () => {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('filterSettings');

@@ -17,14 +17,15 @@ const NAICS_DESCRIPTIONS = {
   '561210': 'Facilities Support Services',
 };
 
-// All available notice types
+// All available notice types (valid SAM.gov ptype values: p, k, r, g, s, f, i, u, a)
 const ALL_NOTICE_TYPES = [
   { code: 'p', name: 'Presolicitation' },
-  { code: 'o', name: 'Solicitation' },
   { code: 'k', name: 'Combined Synopsis/Solicitation' },
   { code: 'r', name: 'Sources Sought' },
   { code: 'a', name: 'Award Notice' },
   { code: 's', name: 'Special Notice' },
+  { code: 'u', name: 'Justification & Approval (J&A)' },
+  { code: 'f', name: 'Fair Opportunity / Limited Sources' },
   { code: 'i', name: 'Intent to Bundle' },
   { code: 'g', name: 'Sale of Surplus Property' },
 ];
@@ -115,14 +116,6 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
     }));
   };
 
-  const updateDaysToFetch = (days) => {
-    const value = Math.max(1, Math.min(90, parseInt(days) || 30));
-    setSettings(prev => ({
-      ...prev,
-      daysToFetch: value
-    }));
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -154,21 +147,19 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
             <div className="text-red-600 text-center py-8">{error}</div>
           ) : settings && (
             <>
-              {/* Days to Fetch */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Days to Fetch
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    value={settings.daysToFetch}
-                    onChange={(e) => updateDaysToFetch(e.target.value)}
-                    min="1"
-                    max="90"
-                    className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <span className="text-sm text-gray-500">days (1-90)</span>
+              {/* Date Range Info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900">Smart Date Range</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      <strong>Monday:</strong> Fetches Saturday through Monday (catches weekend postings)<br />
+                      <strong>Other days:</strong> Fetches current day only
+                    </p>
+                  </div>
                 </div>
               </div>
 
