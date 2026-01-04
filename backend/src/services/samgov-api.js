@@ -3,6 +3,14 @@ import { insertSolicitation, insertScrapeLog, updateScrapeLog } from '../models/
 
 const SAM_API_BASE = 'https://api.sam.gov/opportunities/v2/search';
 
+// Format date as MM/dd/yyyy for SAM.gov API
+function formatDateForSamGov(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
+}
+
 // NAICS codes relevant to RF/EW and defense
 const TARGET_NAICS = [
   '334220', // Radio and Television Broadcasting and Wireless Communications Equipment Manufacturing
@@ -58,12 +66,13 @@ export async function fetchFromSamGov(onProgress = null) {
     logProgress('Fetching opportunities from SAM.gov API...');
 
     // Fetch recent opportunities (last 30 days)
+    // SAM.gov API requires MM/dd/yyyy format
     const postedFrom = new Date();
     postedFrom.setDate(postedFrom.getDate() - 30);
-    const postedFromStr = postedFrom.toISOString().split('T')[0];
+    const postedFromStr = formatDateForSamGov(postedFrom);
 
     const postedTo = new Date();
-    const postedToStr = postedTo.toISOString().split('T')[0];
+    const postedToStr = formatDateForSamGov(postedTo);
 
     // Build NAICS filter string (OR condition with ~)
     const naicsFilter = TARGET_NAICS.join('~');
@@ -369,11 +378,11 @@ export async function fetchDefenseOpportunities(onProgress = null) {
 function getDateDaysAgo(days) {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
+  return formatDateForSamGov(date);
 }
 
 function getTodayDate() {
-  return new Date().toISOString().split('T')[0];
+  return formatDateForSamGov(new Date());
 }
 
 export default { fetchFromSamGov, fetchDefenseOpportunities };
