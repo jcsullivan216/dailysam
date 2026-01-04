@@ -8,6 +8,7 @@ import {
   getRecentScrapeLogs,
   archiveOldSolicitations
 } from '../models/database.js';
+import { fetchFromSamGov, fetchDefenseOpportunities } from '../services/samgov-api.js';
 import { scrapeSamDaily } from '../services/scraper.js';
 
 const router = express.Router();
@@ -163,44 +164,65 @@ router.patch('/:id', (req, res) => {
   }
 });
 
-// POST /api/scrape - Trigger a new scrape
+// POST /api/scrape - Trigger a new fetch from SAM.gov API
+// Query param: ?source=samdaily to use legacy scraper
 router.post('/scrape', async (req, res) => {
   if (scrapeStatus.isRunning) {
     return res.status(409).json({
       success: false,
-      error: 'A scrape is already in progress',
+      error: 'A fetch is already in progress',
       status: scrapeStatus
     });
   }
+
+  const source = req.query.source || 'samgov';
 
   try {
     scrapeStatus = {
       isRunning: true,
       lastRun: new Date().toISOString(),
       progress: [],
-      result: null
+      result: null,
+      source: source
     };
 
-    // Return immediately and run scrape in background
+    // Return immediately and run fetch in background
     res.json({
       success: true,
-      message: 'Scrape started',
+      message: source === 'samgov' ? 'Fetching from SAM.gov API...' : 'Scraping SAM Daily...',
       status: scrapeStatus
     });
 
-    // Run scrape asynchronously
-    const result = await scrapeSamDaily((message) => {
+    const progressCallback = (message) => {
       scrapeStatus.progress.push({
         time: new Date().toISOString(),
         message
       });
-    });
+    };
+
+    let result;
+
+    if (source === 'samgov') {
+      // Use official SAM.gov API (preferred)
+      result = await fetchFromSamGov(progressCallback);
+
+      // Also fetch defense-specific keyword searches
+      if (result.success) {
+        progressCallback('Searching for defense-specific opportunities...');
+        const defenseResult = await fetchDefenseOpportunities(progressCallback);
+        result.itemsFound += defenseResult.totalItems;
+        progressCallback(`Found ${defenseResult.totalItems} additional defense opportunities`);
+      }
+    } else {
+      // Legacy SAM Daily scraper (fallback)
+      result = await scrapeSamDaily(progressCallback);
+    }
 
     scrapeStatus.isRunning = false;
     scrapeStatus.result = result;
 
   } catch (error) {
-    console.error('Scrape error:', error);
+    console.error('Fetch error:', error);
     scrapeStatus.isRunning = false;
     scrapeStatus.result = {
       success: false,
