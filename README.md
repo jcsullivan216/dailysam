@@ -207,10 +207,8 @@ npm install
 # 3. Install all dependencies and build frontend
 npm run setup
 
-# 4. Configure your API key
+# 4. Configure environment (API key is pre-filled)
 cp backend/.env.example backend/.env
-# Then edit backend/.env and set:
-# SAM_API_KEY=SAM-0be519ef-1856-4798-999a-3021fd2476f4
 
 # 5. Start the application
 npm start
@@ -241,19 +239,13 @@ npm start
 
 ### Environment Variables
 
-Create `backend/.env` with:
+The `backend/.env.example` file contains:
 
-```env
-SAM_API_KEY=your-api-key-here
-PORT=3001
-ENABLE_AUTO_SCRAPE=false
-```
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SAM_API_KEY` | (required) | Your SAM.gov API key |
-| `PORT` | 3001 | Backend server port |
-| `ENABLE_AUTO_SCRAPE` | false | Enable daily auto-fetch at 6 AM |
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `SAM_API_KEY` | `SAM-0be519ef-1856-4798-999a-3021fd2476f4` | SAM.gov API key |
+| `PORT` | `3001` | Backend server port |
+| `ENABLE_AUTO_SCRAPE` | `false` | Enable daily auto-fetch at 6 AM |
 
 ### Project Structure
 
@@ -317,12 +309,10 @@ dailysam/
 
 ### Enabling Auto-Fetch
 
-To enable automatic daily fetching at 6 AM, edit `backend/.env`:
+To enable automatic daily fetching at 6 AM, edit `backend/.env` and set:
 
 ```env
-SAM_API_KEY=your-key-here
 ENABLE_AUTO_SCRAPE=true
-PORT=3001
 ```
 
 ### Using Legacy SAM Daily Scraper
