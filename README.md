@@ -192,6 +192,31 @@ npm run setup
 
 This will install dependencies for all parts of the application and build the frontend.
 
+### Quick Start (First Time Setup)
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd dailysam
+
+# 2. Install all dependencies
+npm run setup
+
+# 3. (Optional) Install Playwright browser for full scraping support
+cd backend && npx playwright install chromium && cd ..
+
+# 4. Start the application
+npm start
+
+# 5. Open your browser to http://localhost:3001
+```
+
+On first launch:
+1. The SQLite database will be automatically created in `backend/data/`
+2. Click **"Refresh Data"** to perform your first scrape of SAM Daily
+3. Wait for the scrape to complete (progress shown in UI)
+4. Browse and filter the imported solicitations
+
 ### Running the Application
 
 **Development Mode (with hot reload):**
@@ -260,6 +285,30 @@ dailysam/
 5. Mark items as relevant/not relevant
 6. Add notes for future reference
 7. Export data as needed
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `npm run setup` fails | Ensure Node.js 18+ is installed: `node --version` |
+| Playwright browser error | Run `cd backend && npx playwright install chromium` |
+| Port 3001 in use | Set custom port: `PORT=3002 npm start` |
+| Scrape returns no data | SAM Daily structure may have changed; check scraper logs |
+| Database errors | Delete `backend/data/` folder and restart to recreate |
+
+### Enabling Auto-Scrape
+
+To enable automatic daily scraping at 6 AM:
+
+```bash
+ENABLE_AUTO_SCRAPE=true npm start
+```
+
+Or create a `.env` file in the project root:
+```
+ENABLE_AUTO_SCRAPE=true
+PORT=3001
+```
 
 ---
 
