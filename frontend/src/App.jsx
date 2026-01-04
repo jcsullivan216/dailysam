@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSolicitations } from './hooks/useSolicitations';
 import SolicitationCard from './components/SolicitationCard';
 import FilterBar from './components/FilterBar';
+import SettingsModal from './components/SettingsModal';
 
 function App() {
   const {
@@ -18,6 +19,7 @@ function App() {
   } = useSolicitations();
 
   const [expandedId, setExpandedId] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleToggleExpand = (id) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -37,10 +39,23 @@ function App() {
                 Federal Solicitations for RF/EW & Defense
               </p>
             </div>
-            <div className="text-right text-sm text-gray-500">
-              <div>Track DoD Procurement Opportunities</div>
-              <div className="text-xs">
-                Data from <a href="https://samdaily.us" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">samdaily.us</a>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="API Settings"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="hidden sm:inline">Settings</span>
+              </button>
+              <div className="text-right text-sm text-gray-500">
+                <div>Track DoD Procurement Opportunities</div>
+                <div className="text-xs">
+                  Data from <a href="https://sam.gov" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">SAM.gov API</a>
+                </div>
               </div>
             </div>
           </div>
@@ -160,11 +175,20 @@ function App() {
               SAM Daily Tracker - Federal Procurement Opportunities
             </div>
             <div>
-              Data sourced from <a href="https://samdaily.us" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">SAM Daily</a>
+              Data sourced from <a href="https://sam.gov" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">SAM.gov API</a>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSave={() => {
+          // Settings saved, can trigger refresh if needed
+        }}
+      />
     </div>
   );
 }
