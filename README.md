@@ -207,10 +207,8 @@ npm install
 # 3. Install all dependencies and build frontend
 npm run setup
 
-# 4. Configure your API key
+# 4. Configure environment (API key is pre-filled)
 cp backend/.env.example backend/.env
-# Then edit backend/.env and set:
-# SAM_API_KEY=SAM-0be519ef-1856-4798-999a-3021fd2476f4
 
 # 5. Start the application
 npm start
