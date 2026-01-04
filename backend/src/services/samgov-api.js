@@ -116,8 +116,8 @@ export async function fetchFromSamGov(onProgress = null) {
     // Build NAICS filter string (OR condition with ~)
     const naicsFilter = naicsCodes.join('~');
 
-    // Build notice type filter string (OR condition with ~)
-    const noticeTypeFilter = enabledNoticeTypes.join('~');
+    // Build notice type filter string (comma-separated for ptype)
+    const noticeTypeFilter = enabledNoticeTypes.join(',');
 
     let offset = 0;
     const limit = 100;
