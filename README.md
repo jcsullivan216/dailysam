@@ -187,13 +187,6 @@ The application uses the official SAM.gov Opportunities API to fetch federal pro
 - npm 9+ installed
 - SAM.gov API key (free)
 
-### Getting a SAM.gov API Key
-
-1. Go to https://sam.gov and create an account (or log in)
-2. Navigate to **Account Settings** → **API Keys**
-3. Click **Request API Key** for the public API
-4. Copy your API key (starts with `SAM-`)
-
 ### Quick Start (First Time Setup)
 
 ```bash
@@ -207,7 +200,7 @@ npm install
 # 3. Install all dependencies and build frontend
 npm run setup
 
-# 4. Configure environment (API key is pre-filled)
+# 4. Configure environment
 cp backend/.env.example backend/.env
 
 # 5. Start the application
