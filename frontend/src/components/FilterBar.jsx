@@ -1,5 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { getExportUrl } from '../services/api';
+
+// Calculate what date range will be used when fetching
+function getSmartDateRangeLabel() {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday
+
+  const formatDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  if (dayOfWeek === 1) {
+    // Monday - Saturday through Monday
+    const saturday = new Date(today);
+    saturday.setDate(today.getDate() - 2);
+    return `${formatDate(saturday)} - ${formatDate(today)} (Sat-Mon)`;
+  }
+  return `${formatDate(today)} (today only)`;
+}
 
 export default function FilterBar({
   filters,
@@ -68,28 +84,33 @@ export default function FilterBar({
         </form>
 
         {/* Refresh/Scrape Button */}
-        <button
-          onClick={onTriggerScrape}
-          disabled={scrapeStatus?.isRunning}
-          className={`btn ${scrapeStatus?.isRunning ? 'bg-yellow-500 text-white' : 'btn-primary'} flex items-center`}
-        >
-          {scrapeStatus?.isRunning ? (
-            <>
-              <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Scraping...
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh Data
-            </>
-          )}
-        </button>
+        <div className="flex flex-col items-start">
+          <button
+            onClick={onTriggerScrape}
+            disabled={scrapeStatus?.isRunning}
+            className={`btn ${scrapeStatus?.isRunning ? 'bg-yellow-500 text-white' : 'btn-primary'} flex items-center`}
+          >
+            {scrapeStatus?.isRunning ? (
+              <>
+                <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Fetching...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Data
+              </>
+            )}
+          </button>
+          <span className="text-xs text-gray-500 mt-1">
+            Fetches: {getSmartDateRangeLabel()}
+          </span>
+        </div>
 
         {/* Export Buttons */}
         <div className="flex gap-2">
