@@ -15,36 +15,37 @@ This tool is for tracking DoD procurement opportunities across military branches
 - Defense/military technology
 - Related DoD programs/soliciations
 
-## Scraping Workflow
+## Data Fetching
 
-### Step 1: Navigate to SAM Daily
-- Start at: https://samdaily.us/
-- Find and click the "Today's SAM" link
+### SAM.gov API Integration
 
-### Step 2: Extract Specific Category Links
-From the "Today's SAM" page, locate and scrape content from links with these exact labels:
-- **A** (typically Awards)
-- **D** (typically Combined Synopsis/Solicitations)
-- **J** (typically Justifications & Approvals)
-- **R** (typically Solicitations)
-- **10** (NAICS code category)
-- **16** (NAICS code category)
-- **19** (NAICS code category)
-- **25** (NAICS code category)
-- **58** (NAICS code category)
-- **59** (NAICS code category)
-- **60** (NAICS code category)
-- **61** (NAICS code category)
+The application uses the official SAM.gov Opportunities API to fetch federal procurement data:
 
-### Step 3: Extract Data from Each Link
-For each link above, collect:
-- **Solicitation/Notice Title**
-- **Brief description** (summary text from the page)
-- **Agency/Organization**
-- **Posted date**
-- **Response deadline** (if applicable)
-- **Any embedded links** within the page (extract titles and URLs)
-- **Full URL** to the original posting
+**API Endpoint**: `https://api.sam.gov/opportunities/v2/search`
+
+### What Gets Fetched
+
+1. **By NAICS Codes** (defense/RF/EW relevant):
+   - 334220 - Radio/TV Broadcasting Equipment
+   - 334511 - Search, Detection, Navigation Systems
+   - 334290 - Communications Equipment
+   - 541330 - Engineering Services
+   - 541512 - Computer Systems Design
+   - 541715 - R&D in Physical/Engineering Sciences
+   - 336411 - Aircraft Manufacturing
+   - 336414 - Guided Missile/Space Vehicle Manufacturing
+
+2. **By Keywords**:
+   - Electronic warfare, RF system, radio frequency
+   - Radar system, signal processing, EW system
+   - Jamming, SIGINT, spectrum, antenna, microwave
+
+### Notice Types
+
+- **A** - Award Notices
+- **D** - Combined Synopsis/Solicitation
+- **R** - Solicitations, Presolicitations, Sources Sought
+- **J** - Special Notices, Justifications
 
 ## Data Structure
 
@@ -173,9 +174,9 @@ For each link above, collect:
 
 ## Additional Notes
 
-- SAM Daily structure may change; build with flexibility for minor HTML changes
-- Focus on RF/EW, defense contracting, DoD procurement keywords for relevance detection
-- Consider adding keyword highlighting in descriptions
+- NAICS codes and keywords can be customized in `backend/src/services/samgov-api.js`
+- API rate limit: 1,000 requests/day (sufficient for daily fetching)
+- Data is fetched from the last 30 days of postings
 - Future enhancement: AI-powered relevance scoring based on business focus
 
 ## Getting Started
