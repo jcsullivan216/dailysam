@@ -5,6 +5,7 @@ export function useSolicitations() {
   const [solicitations, setSolicitations] = useState([]);
   const [filters, setFilters] = useState({});
   const [availableFilters, setAvailableFilters] = useState({ agencies: [], categories: [] });
+  const [settings, setSettings] = useState({ naicsCodes: [], keywords: [], noticeTypes: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [scrapeStatus, setScrapeStatus] = useState(null);
@@ -29,6 +30,15 @@ export function useSolicitations() {
       setAvailableFilters(result.data || { agencies: [], categories: [] });
     } catch (err) {
       console.error('Failed to fetch filters:', err);
+    }
+  }, []);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const result = await api.getSettings();
+      setSettings(result.data || { naicsCodes: [], keywords: [], noticeTypes: [] });
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
     }
   }, []);
 
@@ -83,6 +93,7 @@ export function useSolicitations() {
   useEffect(() => {
     fetchSolicitations();
     fetchFilters();
+    fetchSettings();
   }, []);
 
   // Poll for scrape status when scraping
@@ -104,6 +115,7 @@ export function useSolicitations() {
     solicitations,
     filters,
     availableFilters,
+    settings,
     loading,
     error,
     scrapeStatus,
@@ -115,6 +127,7 @@ export function useSolicitations() {
     refresh: () => {
       fetchSolicitations();
       fetchFilters();
+      fetchSettings();
     }
   };
 }

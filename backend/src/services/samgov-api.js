@@ -74,6 +74,27 @@ const DEFAULT_KEYWORDS = [
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Check if opportunity matches our filter criteria (applied locally after fetch)
+function matchesFilters(opp, naicsCodes, enabledNoticeTypes, keywords) {
+  // Check NAICS code match
+  const oppNaics = opp.naicsCode || '';
+  const naicsMatch = naicsCodes.length === 0 || naicsCodes.some(code => oppNaics.startsWith(code));
+
+  // Check notice type match
+  const oppType = (opp.type || '').toLowerCase();
+  const typeMatch = enabledNoticeTypes.length === 0 || enabledNoticeTypes.includes(oppType);
+
+  // Check keyword match in title or description
+  const title = (opp.title || '').toLowerCase();
+  const description = (opp.description || '').toLowerCase();
+  const keywordMatch = keywords.length === 0 || keywords.some(kw =>
+    title.includes(kw.toLowerCase()) || description.includes(kw.toLowerCase())
+  );
+
+  // Match if NAICS matches OR keywords match, AND notice type matches
+  return (naicsMatch || keywordMatch) && typeMatch;
+}
+
 export async function fetchFromSamGov(onProgress = null) {
   const apiKey = process.env.SAM_API_KEY;
 
@@ -81,12 +102,13 @@ export async function fetchFromSamGov(onProgress = null) {
     throw new Error('SAM_API_KEY environment variable is required. Get one at https://sam.gov');
   }
 
-  // Load settings from database
+  // Load settings from database for local filtering
   const settings = getSettings();
   const naicsCodes = settings.naicsCodes || DEFAULT_NAICS;
   const noticeTypes = settings.noticeTypes || DEFAULT_NOTICE_TYPES;
+  const keywords = settings.keywords || DEFAULT_KEYWORDS;
 
-  // Get enabled notice type codes
+  // Get enabled notice type codes for local filtering
   const enabledNoticeTypes = noticeTypes
     .filter(nt => nt.enabled)
     .map(nt => nt.code);
@@ -94,6 +116,7 @@ export async function fetchFromSamGov(onProgress = null) {
   let scrapeLogId = null;
   const errors = [];
   let totalItems = 0;
+  let totalFetched = 0;
   const categoriesScraped = [];
 
   const logProgress = (message) => {
@@ -111,35 +134,23 @@ export async function fetchFromSamGov(onProgress = null) {
     const postedFromStr = formatDateForSamGov(dateRange.from);
     const postedToStr = formatDateForSamGov(dateRange.to);
 
-    logProgress(`Fetching opportunities from SAM.gov API (${naicsCodes.length} NAICS codes, ${enabledNoticeTypes.length} notice types, ${dateRange.description})...`);
-
-    // Build NAICS filter string (OR condition with ~)
-    const naicsFilter = naicsCodes.join('~');
-
-    // Build notice type filter string (comma-separated for ptype)
-    const noticeTypeFilter = enabledNoticeTypes.join(',');
+    logProgress(`Fetching ALL opportunities for ${dateRange.description}, will filter locally...`);
 
     let offset = 0;
-    const limit = 100;
+    const limit = 1000; // Fetch more per page since we're not filtering server-side
     let hasMore = true;
     const seenIds = new Set();
     let rateLimitRetries = 0;
     const MAX_RATE_LIMIT_RETRIES = 3;
 
     while (hasMore) {
+      // Fetch ALL opportunities - no NAICS or ptype filters
       const params = new URLSearchParams({
         postedFrom: postedFromStr,
         postedTo: postedToStr,
         limit: limit.toString(),
         offset: offset.toString(),
-        // Filter by NAICS codes from settings
-        ncode: naicsFilter,
       });
-
-      // Add notice type filter if any are enabled
-      if (noticeTypeFilter) {
-        params.set('ptype', noticeTypeFilter);
-      }
 
       const url = `${SAM_API_BASE}?${params.toString()}`;
       logProgress(`Fetching page ${Math.floor(offset / limit) + 1}...`);
@@ -156,7 +167,7 @@ export async function fetchFromSamGov(onProgress = null) {
         if (response.status === 429) {
           rateLimitRetries++;
           if (rateLimitRetries >= MAX_RATE_LIMIT_RETRIES) {
-            logProgress(`Rate limited ${MAX_RATE_LIMIT_RETRIES} times, stopping to avoid API abuse. Try again later.`);
+            logProgress(`Rate limited ${MAX_RATE_LIMIT_RETRIES} times, stopping. Try again later.`);
             errors.push('Rate limited by SAM.gov API - try again in a few minutes');
             hasMore = false;
             break;
@@ -173,6 +184,7 @@ export async function fetchFromSamGov(onProgress = null) {
 
       const data = await response.json();
       const opportunities = data.opportunitiesData || [];
+      totalFetched += opportunities.length;
 
       logProgress(`Received ${opportunities.length} opportunities`);
 
@@ -185,6 +197,11 @@ export async function fetchFromSamGov(onProgress = null) {
         // Skip duplicates
         if (seenIds.has(opp.noticeId)) continue;
         seenIds.add(opp.noticeId);
+
+        // Apply local filtering based on settings
+        if (!matchesFilters(opp, naicsCodes, enabledNoticeTypes, keywords)) {
+          continue; // Skip opportunities that don't match our criteria
+        }
 
         try {
           const item = mapOpportunityToSolicitation(opp);
@@ -224,8 +241,8 @@ export async function fetchFromSamGov(onProgress = null) {
       }
 
       // Safety limit to avoid infinite loops
-      if (offset > 5000) {
-        logProgress('Reached maximum offset limit (5000)');
+      if (offset > 10000) {
+        logProgress('Reached maximum offset limit (10000)');
         hasMore = false;
       }
     }
@@ -239,7 +256,7 @@ export async function fetchFromSamGov(onProgress = null) {
       scrapeLogId
     );
 
-    logProgress(`Fetch complete. Found ${totalItems} opportunities across ${categoriesScraped.length} categories.`);
+    logProgress(`Fetch complete. Fetched ${totalFetched} total, saved ${totalItems} matching opportunities.`);
 
     return {
       success: true,

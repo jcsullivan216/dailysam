@@ -20,6 +20,7 @@ function getSmartDateRangeLabel() {
 export default function FilterBar({
   filters,
   availableFilters,
+  settings,
   onUpdateFilters,
   onClearFilters,
   onTriggerScrape,
@@ -152,6 +153,36 @@ export default function FilterBar({
           </select>
         </div>
 
+        {/* NAICS Filter */}
+        <div className="min-w-[180px]">
+          <label className="block text-sm font-medium text-gray-700 mb-1">NAICS Code</label>
+          <select
+            value={filters.naics || ''}
+            onChange={(e) => onUpdateFilters({ naics: e.target.value })}
+            className="select text-sm"
+          >
+            <option value="">All NAICS</option>
+            {(settings?.naicsCodes || []).map(code => (
+              <option key={code} value={code}>{code}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Keyword Filter */}
+        <div className="min-w-[180px]">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Keyword</label>
+          <select
+            value={filters.keyword || ''}
+            onChange={(e) => onUpdateFilters({ keyword: e.target.value })}
+            className="select text-sm"
+          >
+            <option value="">All Keywords</option>
+            {(settings?.keywords || []).map(kw => (
+              <option key={kw} value={kw}>{kw}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Agency Filter */}
         <div className="min-w-[200px]">
           <label className="block text-sm font-medium text-gray-700 mb-1">Agency</label>
@@ -165,27 +196,6 @@ export default function FilterBar({
               <option key={agency} value={agency}>{agency}</option>
             ))}
           </select>
-        </div>
-
-        {/* Date Range */}
-        <div className="min-w-[140px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-          <input
-            type="date"
-            value={filters.startDate || ''}
-            onChange={(e) => onUpdateFilters({ startDate: e.target.value })}
-            className="input text-sm"
-          />
-        </div>
-
-        <div className="min-w-[140px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-          <input
-            type="date"
-            value={filters.endDate || ''}
-            onChange={(e) => onUpdateFilters({ endDate: e.target.value })}
-            className="input text-sm"
-          />
         </div>
 
         {/* Relevance Filter */}

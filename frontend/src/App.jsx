@@ -9,6 +9,7 @@ function App() {
     solicitations,
     filters,
     availableFilters,
+    settings,
     loading,
     error,
     scrapeStatus,
@@ -68,6 +69,7 @@ function App() {
         <FilterBar
           filters={filters}
           availableFilters={availableFilters}
+          settings={settings}
           onUpdateFilters={updateFilters}
           onClearFilters={clearFilters}
           onTriggerScrape={triggerScrape}
