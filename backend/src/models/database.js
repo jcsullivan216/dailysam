@@ -159,6 +159,18 @@ export const getSolicitations = (filters = {}) => {
     params.push(`%${filters.search}%`, `%${filters.search}%`);
   }
 
+  // Filter by NAICS code (stored in description as "NAICS: XXXXXX")
+  if (filters.naics) {
+    query += ' AND description LIKE ?';
+    params.push(`%NAICS: ${filters.naics}%`);
+  }
+
+  // Filter by keyword (search in title and description)
+  if (filters.keyword) {
+    query += ' AND (title LIKE ? OR description LIKE ?)';
+    params.push(`%${filters.keyword}%`, `%${filters.keyword}%`);
+  }
+
   if (filters.startDate) {
     query += ' AND posted_date >= ?';
     params.push(filters.startDate);
