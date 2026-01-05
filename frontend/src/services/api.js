@@ -82,12 +82,12 @@ export function getExportUrl(format = 'json', filters = {}) {
 }
 
 export async function getSettings() {
-  const response = await fetch(`${API_BASE}/settings`);
+  const response = await fetch(`${API_BASE}/solicitations/settings`);
   return handleResponse(response);
 }
 
 export async function updateSettings(settings) {
-  const response = await fetch(`${API_BASE}/settings`, {
+  const response = await fetch(`${API_BASE}/solicitations/settings`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

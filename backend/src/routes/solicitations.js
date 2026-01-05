@@ -10,7 +10,7 @@ import {
   getSettings,
   updateSettings
 } from '../models/database.js';
-import { fetchFromSamGov, fetchDefenseOpportunities } from '../services/samgov-api.js';
+import { fetchFromSamGov } from '../services/samgov-api.js';
 import { scrapeSamDaily } from '../services/scraper.js';
 
 const router = express.Router();
@@ -261,16 +261,8 @@ router.post('/scrape', async (req, res) => {
     let result;
 
     if (source === 'samgov') {
-      // Use official SAM.gov API (preferred)
+      // Use official SAM.gov API - fetches all opportunities, filters locally
       result = await fetchFromSamGov(progressCallback);
-
-      // Also fetch defense-specific keyword searches
-      if (result.success) {
-        progressCallback('Searching for defense-specific opportunities...');
-        const defenseResult = await fetchDefenseOpportunities(progressCallback);
-        result.itemsFound += defenseResult.totalItems;
-        progressCallback(`Found ${defenseResult.totalItems} additional defense opportunities`);
-      }
     } else {
       // Legacy SAM Daily scraper (fallback)
       result = await scrapeSamDaily(progressCallback);
