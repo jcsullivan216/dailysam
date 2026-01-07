@@ -134,116 +134,122 @@ export async function fetchFromSamGov(onProgress = null) {
     const postedFromStr = formatDateForSamGov(dateRange.from);
     const postedToStr = formatDateForSamGov(dateRange.to);
 
-    logProgress(`Fetching ALL opportunities for ${dateRange.description}, will filter locally...`);
+    logProgress(`Fetching ALL opportunities for ${dateRange.description}...`);
 
-    let offset = 0;
-    const limit = 1000; // Fetch more per page since we're not filtering server-side
-    let hasMore = true;
     const seenIds = new Set();
     let rateLimitRetries = 0;
     const MAX_RATE_LIMIT_RETRIES = 3;
 
-    while (hasMore) {
-      // Fetch ALL opportunities - no NAICS or ptype filters
-      const params = new URLSearchParams({
-        postedFrom: postedFromStr,
-        postedTo: postedToStr,
-        limit: limit.toString(),
-        offset: offset.toString(),
-      });
+    // Fetch both newly posted AND modified opportunities
+    const fetchTypes = [
+      { name: 'posted', params: { postedFrom: postedFromStr, postedTo: postedToStr } },
+      { name: 'modified', params: { modifiedFrom: postedFromStr, modifiedTo: postedToStr } },
+    ];
 
-      const url = `${SAM_API_BASE}?${params.toString()}`;
-      logProgress(`Fetching page ${Math.floor(offset / limit) + 1}...`);
+    for (const fetchType of fetchTypes) {
+      let offset = 0;
+      const limit = 1000;
+      let hasMore = true;
 
-      const response = await fetch(url, {
-        headers: {
-          'X-Api-Key': apiKey,
-          'Accept': 'application/json',
-        },
-      });
+      logProgress(`Fetching ${fetchType.name} opportunities...`);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 429) {
-          rateLimitRetries++;
-          if (rateLimitRetries >= MAX_RATE_LIMIT_RETRIES) {
-            logProgress(`Rate limited ${MAX_RATE_LIMIT_RETRIES} times, stopping. Try again later.`);
-            errors.push('Rate limited by SAM.gov API - try again in a few minutes');
-            hasMore = false;
-            break;
+      while (hasMore) {
+        const params = new URLSearchParams({
+          ...fetchType.params,
+          limit: limit.toString(),
+          offset: offset.toString(),
+        });
+
+        const url = `${SAM_API_BASE}?${params.toString()}`;
+        logProgress(`Fetching ${fetchType.name} page ${Math.floor(offset / limit) + 1}...`);
+
+        const response = await fetch(url, {
+          headers: {
+            'X-Api-Key': apiKey,
+            'Accept': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          if (response.status === 429) {
+            rateLimitRetries++;
+            if (rateLimitRetries >= MAX_RATE_LIMIT_RETRIES) {
+              logProgress(`Rate limited ${MAX_RATE_LIMIT_RETRIES} times, stopping. Try again later.`);
+              errors.push('Rate limited by SAM.gov API - try again in a few minutes');
+              hasMore = false;
+              break;
+            }
+            logProgress(`Rate limited, waiting 60 seconds (attempt ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES})...`);
+            await delay(60000);
+            continue;
           }
-          logProgress(`Rate limited, waiting 60 seconds (attempt ${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES})...`);
-          await delay(60000);
-          continue;
-        }
-        throw new Error(`SAM.gov API error ${response.status}: ${errorText}`);
-      }
-
-      // Reset retry counter on successful request
-      rateLimitRetries = 0;
-
-      const data = await response.json();
-      const opportunities = data.opportunitiesData || [];
-      totalFetched += opportunities.length;
-
-      logProgress(`Received ${opportunities.length} opportunities`);
-
-      if (opportunities.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      for (const opp of opportunities) {
-        // Skip duplicates
-        if (seenIds.has(opp.noticeId)) continue;
-        seenIds.add(opp.noticeId);
-
-        // Apply local filtering based on settings
-        if (!matchesFilters(opp, naicsCodes, enabledNoticeTypes, keywords)) {
-          continue; // Skip opportunities that don't match our criteria
+          throw new Error(`SAM.gov API error ${response.status}: ${errorText}`);
         }
 
-        try {
-          const item = mapOpportunityToSolicitation(opp);
+        // Reset retry counter on successful request
+        rateLimitRetries = 0;
 
-          insertSolicitation.run(
-            item.id,
-            item.category,
-            item.title,
-            item.description,
-            item.agency,
-            item.postedDate,
-            item.responseDeadline,
-            item.sourceUrl,
-            JSON.stringify(item.relatedLinks),
-            item.scrapedAt,
-            null, // is_relevant
-            null  // notes
-          );
-          totalItems++;
+        const data = await response.json();
+        const opportunities = data.opportunitiesData || [];
+        const totalRecords = data.totalRecords || 0;
+        totalFetched += opportunities.length;
 
-          // Track category
-          if (!categoriesScraped.includes(item.category)) {
-            categoriesScraped.push(item.category);
+        logProgress(`Received ${opportunities.length} ${fetchType.name} opportunities (${totalRecords} total available)`);
+
+        if (opportunities.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        for (const opp of opportunities) {
+          // Skip duplicates (already fetched in posted or modified)
+          if (seenIds.has(opp.noticeId)) continue;
+          seenIds.add(opp.noticeId);
+
+          // Save ALL opportunities - filtering is done in the UI
+          try {
+            const item = mapOpportunityToSolicitation(opp);
+
+            insertSolicitation.run(
+              item.id,
+              item.category,
+              item.title,
+              item.description,
+              item.agency,
+              item.postedDate,
+              item.responseDeadline,
+              item.sourceUrl,
+              JSON.stringify(item.relatedLinks),
+              item.scrapedAt,
+              null, // is_relevant
+              null  // notes
+            );
+            totalItems++;
+
+            // Track category
+            if (!categoriesScraped.includes(item.category)) {
+              categoriesScraped.push(item.category);
+            }
+          } catch (dbError) {
+            // Likely duplicate from DB, skip silently
           }
-        } catch (dbError) {
-          errors.push(`DB error for ${opp.title}: ${dbError.message}`);
         }
-      }
 
-      // Check if there are more results
-      if (opportunities.length < limit) {
-        hasMore = false;
-      } else {
-        offset += limit;
-        // Rate limiting - be respectful with 2 second delay
-        await delay(2000);
-      }
+        // Check if there are more results
+        if (opportunities.length < limit) {
+          hasMore = false;
+        } else {
+          offset += limit;
+          // Rate limiting - be respectful with 2 second delay
+          await delay(2000);
+        }
 
-      // Safety limit to avoid infinite loops
-      if (offset > 10000) {
-        logProgress('Reached maximum offset limit (10000)');
-        hasMore = false;
+        // Safety limit to avoid infinite loops
+        if (offset > 10000) {
+          logProgress('Reached maximum offset limit (10000)');
+          hasMore = false;
+        }
       }
     }
 
