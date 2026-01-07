@@ -32,8 +32,12 @@ router.get('/', (req, res) => {
       search,
       startDate,
       endDate,
-      isRelevant
+      isRelevant,
+      myInterests
     } = req.query;
+
+    // Get settings if myInterests filter is enabled
+    const settings = myInterests === 'true' ? getSettings() : null;
 
     const solicitations = getSolicitations({
       category,
@@ -41,8 +45,9 @@ router.get('/', (req, res) => {
       search,
       startDate,
       endDate,
-      isRelevant
-    });
+      isRelevant,
+      myInterests
+    }, settings);
 
     // Parse related_links JSON for each item
     const formatted = solicitations.map(s => ({

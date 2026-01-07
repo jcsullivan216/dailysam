@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { getExportUrl } from '../services/api';
 
 // Calculate what date range will be used when fetching
@@ -28,6 +28,7 @@ export default function FilterBar({
   totalCount
 }) {
   const [searchValue, setSearchValue] = useState(filters.search || '');
+  const [showMyInterests, setShowMyInterests] = useState(false);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -44,7 +45,24 @@ export default function FilterBar({
     window.open(url, '_blank');
   };
 
-  const allCategories = ['A', 'D', 'J', 'R', '10', '16', '19', '25', '58', '59', '60', '61'];
+  const handleMyInterestsToggle = () => {
+    const newValue = !showMyInterests;
+    setShowMyInterests(newValue);
+
+    if (newValue) {
+      // Apply settings-based filter
+      onUpdateFilters({ myInterests: true });
+    } else {
+      // Remove the filter
+      onUpdateFilters({ myInterests: false });
+    }
+  };
+
+  const handleClearAll = () => {
+    setShowMyInterests(false);
+    setSearchValue('');
+    onClearFilters();
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-md p-4 mb-6">
@@ -83,6 +101,22 @@ export default function FilterBar({
             </div>
           </div>
         </form>
+
+        {/* My Interests Toggle */}
+        <div className="flex items-center">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showMyInterests}
+              onChange={handleMyInterestsToggle}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm font-medium text-gray-700">My Interests Only</span>
+          </label>
+          <span className="ml-2 text-xs text-gray-500" title="Filter by your configured NAICS codes and keywords">
+            (RF/EW/Defense)
+          </span>
+        </div>
 
         {/* Refresh/Scrape Button */}
         <div className="flex flex-col items-start">
@@ -133,7 +167,7 @@ export default function FilterBar({
       {/* Filter Row */}
       <div className="flex flex-wrap gap-4 items-end">
         {/* Category Filter */}
-        <div className="min-w-[150px]">
+        <div className="min-w-[180px]">
           <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
           <select
             value={filters.category || ''}
@@ -141,50 +175,20 @@ export default function FilterBar({
             className="select text-sm"
           >
             <option value="">All Categories</option>
-            {allCategories.map(cat => (
+            {availableFilters.categories.map(cat => (
               <option key={cat} value={cat}>
                 {cat === 'A' ? 'A - Awards' :
                  cat === 'D' ? 'D - Combined Synopsis' :
                  cat === 'J' ? 'J - J&A' :
                  cat === 'R' ? 'R - Solicitations' :
-                 `NAICS ${cat}`}
+                 cat.length === 2 ? `NAICS ${cat}` : cat}
               </option>
             ))}
           </select>
         </div>
 
-        {/* NAICS Filter */}
-        <div className="min-w-[180px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">NAICS Code</label>
-          <select
-            value={filters.naics || ''}
-            onChange={(e) => onUpdateFilters({ naics: e.target.value })}
-            className="select text-sm"
-          >
-            <option value="">All NAICS</option>
-            {(settings?.naicsCodes || []).map(code => (
-              <option key={code} value={code}>{code}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Keyword Filter */}
-        <div className="min-w-[180px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Keyword</label>
-          <select
-            value={filters.keyword || ''}
-            onChange={(e) => onUpdateFilters({ keyword: e.target.value })}
-            className="select text-sm"
-          >
-            <option value="">All Keywords</option>
-            {(settings?.keywords || []).map(kw => (
-              <option key={kw} value={kw}>{kw}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Agency Filter */}
-        <div className="min-w-[200px]">
+        <div className="min-w-[250px]">
           <label className="block text-sm font-medium text-gray-700 mb-1">Agency</label>
           <select
             value={filters.agency || ''}
@@ -199,7 +203,7 @@ export default function FilterBar({
         </div>
 
         {/* Relevance Filter */}
-        <div className="min-w-[150px]">
+        <div className="min-w-[140px]">
           <label className="block text-sm font-medium text-gray-700 mb-1">Relevance</label>
           <select
             value={filters.isRelevant ?? ''}
@@ -215,7 +219,7 @@ export default function FilterBar({
 
         {/* Clear Filters */}
         <button
-          onClick={onClearFilters}
+          onClick={handleClearAll}
           className="btn btn-secondary text-sm"
         >
           Clear Filters
@@ -226,6 +230,21 @@ export default function FilterBar({
           Showing <span className="font-semibold">{totalCount}</span> solicitations
         </div>
       </div>
+
+      {/* Active Filters Summary */}
+      {showMyInterests && (
+        <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="text-xs text-blue-800">
+            <span className="font-medium">Filtering by your interests:</span>{' '}
+            {settings?.naicsCodes?.length > 0 && (
+              <span>NAICS: {settings.naicsCodes.slice(0, 5).join(', ')}{settings.naicsCodes.length > 5 ? '...' : ''}</span>
+            )}
+            {settings?.keywords?.length > 0 && (
+              <span className="ml-2">Keywords: {settings.keywords.slice(0, 5).join(', ')}{settings.keywords.length > 5 ? '...' : ''}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Scrape Progress */}
       {scrapeStatus?.isRunning && scrapeStatus.progress?.length > 0 && (
