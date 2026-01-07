@@ -141,9 +141,10 @@ export async function fetchFromSamGov(onProgress = null) {
     const MAX_RATE_LIMIT_RETRIES = 3;
 
     // Fetch both newly posted AND modified opportunities
+    // SAM.gov API requires postedFrom/postedTo even when filtering by modified date
     const fetchTypes = [
       { name: 'posted', params: { postedFrom: postedFromStr, postedTo: postedToStr } },
-      { name: 'modified', params: { modifiedFrom: postedFromStr, modifiedTo: postedToStr } },
+      { name: 'modified', params: { postedFrom: '01/01/2020', postedTo: postedToStr, modifiedFrom: postedFromStr, modifiedTo: postedToStr } },
     ];
 
     for (const fetchType of fetchTypes) {
