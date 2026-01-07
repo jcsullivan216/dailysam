@@ -192,9 +192,10 @@ export async function fetchFromSamGov(onProgress = null) {
 
         const data = await response.json();
         const opportunities = data.opportunitiesData || [];
+        const totalRecords = data.totalRecords || 0;
         totalFetched += opportunities.length;
 
-        logProgress(`Received ${opportunities.length} ${fetchType.name} opportunities`);
+        logProgress(`Received ${opportunities.length} ${fetchType.name} opportunities (${totalRecords} total available)`);
 
         if (opportunities.length === 0) {
           hasMore = false;
