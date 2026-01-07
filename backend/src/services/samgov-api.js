@@ -140,16 +140,9 @@ export async function fetchFromSamGov(onProgress = null) {
     let rateLimitRetries = 0;
     const MAX_RATE_LIMIT_RETRIES = 3;
 
-    // Fetch both newly posted AND modified opportunities
-    // SAM.gov API requires postedFrom/postedTo even when filtering by modified date
-    // Use 1 year range for modified to avoid "date range must be null year(s) apart" error
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const oneYearAgoStr = formatDateForSamGov(oneYearAgo);
-
+    // Fetch posted opportunities only (modified fetch has date range issues with SAM.gov API)
     const fetchTypes = [
       { name: 'posted', params: { postedFrom: postedFromStr, postedTo: postedToStr } },
-      { name: 'modified', params: { postedFrom: oneYearAgoStr, postedTo: postedToStr, modifiedFrom: postedFromStr, modifiedTo: postedToStr } },
     ];
 
     for (const fetchType of fetchTypes) {
