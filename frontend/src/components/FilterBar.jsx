@@ -4,12 +4,11 @@ import { getExportUrl } from '../services/api';
 // Calculate what date range will be used when fetching
 function getSmartDateRangeLabel() {
   const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday
+  const dayOfWeek = today.getDay();
 
   const formatDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   if (dayOfWeek === 1) {
-    // Monday - Saturday through Monday
     const saturday = new Date(today);
     saturday.setDate(today.getDate() - 2);
     return `${formatDate(saturday)} - ${formatDate(today)} (Sat-Mon)`;
@@ -20,7 +19,6 @@ function getSmartDateRangeLabel() {
 export default function FilterBar({
   filters,
   availableFilters,
-  settings,
   onUpdateFilters,
   onClearFilters,
   onTriggerScrape,
@@ -28,7 +26,6 @@ export default function FilterBar({
   totalCount
 }) {
   const [searchValue, setSearchValue] = useState(filters.search || '');
-  const [showMyInterests, setShowMyInterests] = useState(false);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -43,25 +40,6 @@ export default function FilterBar({
   const handleExport = (format) => {
     const url = getExportUrl(format, filters);
     window.open(url, '_blank');
-  };
-
-  const handleMyInterestsToggle = () => {
-    const newValue = !showMyInterests;
-    setShowMyInterests(newValue);
-
-    if (newValue) {
-      // Apply settings-based filter
-      onUpdateFilters({ myInterests: true });
-    } else {
-      // Remove the filter
-      onUpdateFilters({ myInterests: false });
-    }
-  };
-
-  const handleClearAll = () => {
-    setShowMyInterests(false);
-    setSearchValue('');
-    onClearFilters();
   };
 
   return (
@@ -101,22 +79,6 @@ export default function FilterBar({
             </div>
           </div>
         </form>
-
-        {/* My Interests Toggle */}
-        <div className="flex items-center">
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showMyInterests}
-              onChange={handleMyInterestsToggle}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-            />
-            <span className="ml-2 text-sm font-medium text-gray-700">My Interests Only</span>
-          </label>
-          <span className="ml-2 text-xs text-gray-500" title="Filter by your configured NAICS codes and keywords">
-            (RF/EW/Defense)
-          </span>
-        </div>
 
         {/* Refresh/Scrape Button */}
         <div className="flex flex-col items-start">
@@ -219,7 +181,10 @@ export default function FilterBar({
 
         {/* Clear Filters */}
         <button
-          onClick={handleClearAll}
+          onClick={() => {
+            setSearchValue('');
+            onClearFilters();
+          }}
           className="btn btn-secondary text-sm"
         >
           Clear Filters
@@ -231,25 +196,10 @@ export default function FilterBar({
         </div>
       </div>
 
-      {/* Active Filters Summary */}
-      {showMyInterests && (
-        <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="text-xs text-blue-800">
-            <span className="font-medium">Filtering by your interests:</span>{' '}
-            {settings?.naicsCodes?.length > 0 && (
-              <span>NAICS: {settings.naicsCodes.slice(0, 5).join(', ')}{settings.naicsCodes.length > 5 ? '...' : ''}</span>
-            )}
-            {settings?.keywords?.length > 0 && (
-              <span className="ml-2">Keywords: {settings.keywords.slice(0, 5).join(', ')}{settings.keywords.length > 5 ? '...' : ''}</span>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Scrape Progress */}
       {scrapeStatus?.isRunning && scrapeStatus.progress?.length > 0 && (
         <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-          <div className="text-sm text-yellow-800 font-medium mb-1">Scrape Progress</div>
+          <div className="text-sm text-yellow-800 font-medium mb-1">Fetch Progress</div>
           <div className="text-xs text-yellow-700 max-h-24 overflow-y-auto">
             {scrapeStatus.progress.slice(-5).map((p, i) => (
               <div key={i}>{p.message}</div>
