@@ -140,7 +140,7 @@ export const insertSolicitation = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 `);
 
-export const getSolicitations = (filters = {}) => {
+export const getSolicitations = (filters = {}, settings = null) => {
   let query = 'SELECT * FROM solicitations WHERE 1=1';
   const params = [];
 
@@ -159,16 +159,32 @@ export const getSolicitations = (filters = {}) => {
     params.push(`%${filters.search}%`, `%${filters.search}%`);
   }
 
-  // Filter by NAICS code (stored in description as "NAICS: XXXXXX")
-  if (filters.naics) {
-    query += ' AND description LIKE ?';
-    params.push(`%NAICS: ${filters.naics}%`);
-  }
+  // "My Interests" filter - uses settings NAICS codes and keywords
+  if (filters.myInterests === 'true' || filters.myInterests === true) {
+    if (settings) {
+      const naicsCodes = settings.naicsCodes || [];
+      const keywords = settings.keywords || [];
 
-  // Filter by keyword (search in title and description)
-  if (filters.keyword) {
-    query += ' AND (title LIKE ? OR description LIKE ?)';
-    params.push(`%${filters.keyword}%`, `%${filters.keyword}%`);
+      if (naicsCodes.length > 0 || keywords.length > 0) {
+        const conditions = [];
+
+        // Match any NAICS code
+        for (const code of naicsCodes) {
+          conditions.push('description LIKE ?');
+          params.push(`%NAICS: ${code}%`);
+        }
+
+        // Match any keyword in title or description
+        for (const kw of keywords) {
+          conditions.push('(title LIKE ? OR description LIKE ?)');
+          params.push(`%${kw}%`, `%${kw}%`);
+        }
+
+        if (conditions.length > 0) {
+          query += ` AND (${conditions.join(' OR ')})`;
+        }
+      }
+    }
   }
 
   if (filters.startDate) {
